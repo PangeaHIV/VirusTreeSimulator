@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="VirusTreeSimulator:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/VirusTreeSimulator_jar</output-path>
+    <root id="archive" name="VirusTreeSimulator.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/src/META-INF/MANIFEST.MF" />
+      </element>
+      <element id="module-output" name="VirusTreeSimulator" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/beast.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/virusTreeBuilder.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="virusTreeBuilder">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/virusTreeBuilder.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
