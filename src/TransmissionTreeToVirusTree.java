@@ -121,9 +121,9 @@ public class TransmissionTreeToVirusTree {
         while(line!=null){
             String[] entries = line.split(",");
 
-            InfectedUnit infectee = idMap.get("ID_"+entries[1]);
+            InfectedUnit infectee = idMap.get("ID_"+entries[2]);
 
-            InfectedUnit infector = idMap.get("ID_"+entries[2]);
+            InfectedUnit infector = idMap.get("ID_"+entries[1]);
 
             Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[3]), infector, infectee);
 
@@ -147,10 +147,10 @@ public class TransmissionTreeToVirusTree {
         while(line!=null){
             String[] entries = line.split(",");
 
-            InfectedUnit infectee = idMap.get("ID_"+entries[2]);
+            InfectedUnit infectee = idMap.get("ID_"+entries[1]);
 
             if(infectee.infectionEvent==null){
-                Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[3]), null, infectee);
+                Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[8]), null, infectee);
                 infectee.setInfectionEvent(infection);
             }
 
@@ -206,10 +206,6 @@ public class TransmissionTreeToVirusTree {
             if(event.time > lastRelevantEventTime){
                 lastRelevantEventTime = event.time;
             }
-        }
-
-        if(unit.infectionEvent==null){
-            System.out.println();
         }
 
         double activeTime = lastRelevantEventTime - unit.infectionEvent.time;
