@@ -1,5 +1,5 @@
-package dr.app.tools;
 
+import dr.app.tools.NexusExporter;
 import dr.app.util.Arguments;
 import dr.evolution.coalescent.CoalescentSimulator;
 import dr.evolution.coalescent.ConstantPopulation;
@@ -53,8 +53,10 @@ public class TransmissionTreeToVirusTree {
         this.outputFileRoot = outputFileRoot;
         coalescentProbability = 1;
         try {
-            readInfectionEvents(fileName);
             readSamplingEvents(fileName);
+            readInfectionEvents(fileName);
+            readIntroductionEvents(fileName);
+
         } catch(IOException e){
             e.printStackTrace();
         }
@@ -67,8 +69,10 @@ public class TransmissionTreeToVirusTree {
         idMap = new HashMap<String, InfectedUnit>();
         this.outputFileRoot = outputFileRoot;
         try {
-            readInfectionEvents(transFileName);
             readSamplingEvents(sampFileName);
+            readInfectionEvents(transFileName);
+            readIntroductionEvents(transFileName);
+
         } catch(IOException e){
             e.printStackTrace();
         }
@@ -110,40 +114,49 @@ public class TransmissionTreeToVirusTree {
     private void readInfectionEvents(String fileName) throws IOException{
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        ArrayList<String[]> keptLines = new ArrayList<String[]>();
+        reader.readLine();
+
+        String line = reader.readLine();
+
+        while(line!=null){
+            String[] entries = line.split(",");
+
+            InfectedUnit infectee = idMap.get("ID_"+entries[1]);
+
+            InfectedUnit infector = idMap.get("ID_"+entries[2]);
+
+            Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[3]), infector, infectee);
+
+            infector.addInfectionEvent(infection);
+            infectee.setInfectionEvent(infection);
+
+            infectee.parent = infector;
+
+            line = reader.readLine();
+        }
+
+    }
+
+    private void readIntroductionEvents(String fileName) throws IOException{
+        BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
         reader.readLine();
 
         String line = reader.readLine();
 
         while(line!=null){
-
             String[] entries = line.split(",");
-            keptLines.add(entries);
 
-            InfectedUnit unit = new InfectedUnit("ID_"+entries[1]);
-            units.add(unit);
-            idMap.put("ID_"+entries[1], unit);
+            InfectedUnit infectee = idMap.get("ID_"+entries[2]);
+
+            if(infectee.infectionEvent==null){
+                Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[4]), null, infectee);
+                infectee.setInfectionEvent(infection);
+            }
 
             line = reader.readLine();
         }
 
-        for(String[] repeatLine: keptLines){
-
-            InfectedUnit infectee = idMap.get("ID_"+repeatLine[1]);
-            if(!repeatLine[2].equals("-1")){
-                InfectedUnit infector = idMap.get("ID_"+repeatLine[2]);
-                Event infection = new Event(EventType.INFECTION, Double.parseDouble(repeatLine[3]), infector, infectee);
-
-                infector.addInfectionEvent(infection);
-                infectee.setInfectionEvent(infection);
-
-                infectee.parent = infector;
-            } else {
-                Event infection = new Event(EventType.INFECTION, Double.parseDouble(repeatLine[3]), null, infectee);
-                infectee.setInfectionEvent(infection);
-            }
-        }
     }
 
     private void readSamplingEvents(String fileName) throws IOException{
@@ -157,14 +170,17 @@ public class TransmissionTreeToVirusTree {
 
             String[] entries = line.split(",");
 
+            InfectedUnit unit = new InfectedUnit("ID_"+entries[1]);
+
+            units.add(unit);
+            idMap.put("ID_"+entries[1], unit);
+
             if(!entries[7].equals("NA")) {
 
                 if (!idMap.containsKey("ID_"+entries[1])) {
                     throw new RuntimeException("Trying to add a sampling event to unit " + entries[2] + " but this " +
                             "unit not previously defined");
                 }
-
-                InfectedUnit unit = idMap.get("ID_"+entries[1]);
 
                 unit.addSamplingEvent(Double.parseDouble(entries[7]));
             }
@@ -191,6 +207,10 @@ public class TransmissionTreeToVirusTree {
             if(event.time > lastRelevantEventTime){
                 lastRelevantEventTime = event.time;
             }
+        }
+
+        if(unit.infectionEvent == null){
+            System.out.println();
         }
 
         double activeTime = lastRelevantEventTime - unit.infectionEvent.time;
@@ -256,25 +276,28 @@ public class TransmissionTreeToVirusTree {
         ArrayList<FlexibleTree> out = new ArrayList<FlexibleTree>();
 
         for(InfectedUnit introduction : introducedCases) {
-            coalescentProbability = 1;
+            if(introduction.childEvents.size()>0) {
 
-            System.out.println("Building tree for descendants of " + introduction.id);
-            FlexibleNode outTreeRoot = makeSubtree(introduction);
+                coalescentProbability = 1;
 
-            if (outTreeRoot != null) {
-                FlexibleTree finalTree = new FlexibleTree(outTreeRoot, false, true);
-                finalTree.setAttribute("firstCase", introduction.id);
-                out.add(finalTree);
+                System.out.println("Building tree for descendants of " + introduction.id);
+                FlexibleNode outTreeRoot = makeSubtree(introduction);
 
-                if(coalescentProbability<0.9){
-                    progressStream.println("WARNING: any phylogeny for descendants of "+introduction.id+" is quite " +
-                            "improbable (p<"+(coalescentProbability)+") given this demographic function. Consider " +
-                            "another.");
+                if (outTreeRoot != null) {
+                    FlexibleTree finalTree = new FlexibleTree(outTreeRoot, false, true);
+                    finalTree.setAttribute("firstCase", introduction.id);
+                    out.add(finalTree);
+
+                    if (coalescentProbability < 0.9) {
+                        progressStream.println("WARNING: any phylogeny for descendants of " + introduction.id + " is quite " +
+                                "improbable (p<" + (coalescentProbability) + ") given this demographic function. Consider " +
+                                "another.");
+                    }
+                } else {
+                    progressStream.println("This individual has no sampled descendants");
                 }
-            } else {
-                progressStream.println("This individual has no sampled descendants");
+                System.out.println();
             }
-            System.out.println();
 
 
         }
@@ -415,7 +438,7 @@ public class TransmissionTreeToVirusTree {
         }
 
         private void addSamplingEvent(double time){
-            if(time < infectionEvent.time){
+            if(infectionEvent!=null && time < infectionEvent.time){
                 throw new RuntimeException("Adding an event to case "+id+" before its infection time");
             }
             childEvents.add(new Event(EventType.SAMPLE, time));
@@ -428,7 +451,19 @@ public class TransmissionTreeToVirusTree {
         private void setInfectionEvent(Event event){
             for(Event childEvent : childEvents){
                 if(event.time > childEvent.time){
-                    throw new RuntimeException("Setting infection time for case "+id+" after an existing child event");
+
+                    if(childEvent.type == EventType.SAMPLE){
+                        throw new RuntimeException("Setting infection time for case "+id+" after its sampling at "+
+                        childEvent.time);
+                    } else {
+                        String childUnitName = childEvent.infectee.id;
+
+                        throw new RuntimeException("Setting infection time for case "+id+" after it infected "
+                                +childUnitName+" at "+childEvent.time);
+
+                    }
+
+
                 }
             }
 
@@ -553,17 +588,20 @@ public class TransmissionTreeToVirusTree {
             case CONSTANT: {
                 demoFunction = new ConstantPopulation(Units.Type.YEARS);
                 ((ConstantPopulation)demoFunction).setN0(startNe);
+                break;
             }
             case EXPONENTIAL: {
                 demoFunction = new ExponentialGrowth(Units.Type.YEARS);
                 ((ExponentialGrowth)demoFunction).setN0(startNe);
                 ((ExponentialGrowth)demoFunction).setGrowthRate(growthRate);
+                break;
             }
             case LOGISTIC: {
                 demoFunction = new LogisticGrowthN0(Units.Type.YEARS);
                 ((LogisticGrowthN0)demoFunction).setN0(startNe);
                 ((LogisticGrowthN0)demoFunction).setGrowthRate(growthRate);
                 ((LogisticGrowthN0)demoFunction).setT50(t50);
+                break;
             }
         }
 
