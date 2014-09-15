@@ -38,6 +38,13 @@ public class TransmissionTreeToVirusTree {
     public static final String GROWTH_RATE = "growthRate";
     public static final String T50 = "t50";
 
+    public static final String IDREC = "IDREC";
+    public static final String IDTR = "IDTR";
+    public static final String TIME_TR = "TIME_TR";
+    public static final String IDTR_TIME_INFECTED = "IDTR_TIME_INFECTED";
+    public static final String IDPOP = "IDPOP";
+    public static final String TIME_SEQ = "TIME_SEQ";
+
     private DemographicFunction demFunct;
     private ArrayList<InfectedUnit> units;
     private HashMap<String, InfectedUnit> idMap;
@@ -114,18 +121,38 @@ public class TransmissionTreeToVirusTree {
     private void readInfectionEvents(String fileName) throws IOException{
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        reader.readLine();
+        String[] headers = reader.readLine().split(",");
+
+        int infecteeColumn = -1;
+        int infectorColumn = -1;
+        int timeColumn = -1;
+
+        for(int i=0; i<headers.length; i++){
+            String headerItem = headers[i].replaceAll("\"", "");
+            if(headerItem.equals(IDREC)){
+                infecteeColumn = i;
+            } else if(headerItem.equals(IDTR)){
+                infectorColumn = i;
+            } else if(headerItem.equals(TIME_TR)){
+                timeColumn = i;
+            }
+        }
+
+        if(infecteeColumn == -1 || infectorColumn == -1 || timeColumn == -1){
+            throw new RuntimeException("Not all required columns are present in the file");
+        }
 
         String line = reader.readLine();
 
         while(line!=null){
             String[] entries = line.split(",");
 
-            InfectedUnit infectee = idMap.get("ID_"+entries[1]);
+            InfectedUnit infectee = idMap.get("ID_"+entries[infecteeColumn]);
 
-            InfectedUnit infector = idMap.get("ID_"+entries[2]);
+            InfectedUnit infector = idMap.get("ID_"+entries[infectorColumn]);
 
-            Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[3]), infector, infectee);
+            Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[timeColumn]), infector,
+                    infectee);
 
             infector.addInfectionEvent(infection);
             infectee.setInfectionEvent(infection);
@@ -140,17 +167,34 @@ public class TransmissionTreeToVirusTree {
     private void readIntroductionEvents(String fileName) throws IOException{
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        reader.readLine();
+        String[] headers = reader.readLine().split(",");
+
+        int infecteeColumn = -1;
+        int infecteeTimeColumn = -1;
+
+        for(int i=0; i<headers.length; i++){
+            String headerItem = headers[i].replaceAll("\"", "");
+            if(headerItem.equals(IDTR)){
+                infecteeColumn = i;
+            } else if(headerItem.equals(IDTR_TIME_INFECTED)){
+                infecteeTimeColumn = i;
+            }
+        }
+
+        if(infecteeColumn == -1 || infecteeTimeColumn == -1){
+            throw new RuntimeException("Not all required columns are present in the file");
+        }
 
         String line = reader.readLine();
 
         while(line!=null){
             String[] entries = line.split(",");
 
-            InfectedUnit infectee = idMap.get("ID_"+entries[2]);
+            InfectedUnit infectee = idMap.get("ID_"+entries[infecteeColumn]);
 
             if(infectee.infectionEvent==null){
-                Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[4]), null, infectee);
+                Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[infecteeTimeColumn]), null,
+                        infectee);
                 infectee.setInfectionEvent(infection);
             }
 
@@ -162,7 +206,23 @@ public class TransmissionTreeToVirusTree {
     private void readSamplingEvents(String fileName) throws IOException{
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        reader.readLine();
+        String[] headers = reader.readLine().split(",");
+
+        int unitColumn = -1;
+        int samplingTimeColumn = -1;
+
+        for(int i=0; i<headers.length; i++){
+            String headerItem = headers[i].replaceAll("\"", "");
+            if(headerItem.equals(IDPOP)){
+                unitColumn = i;
+            } else if(headerItem.equals(TIME_SEQ)){
+                samplingTimeColumn = i;
+            }
+        }
+
+        if(unitColumn == -1 || samplingTimeColumn == -1){
+            throw new RuntimeException("Not all required columns are present in the file");
+        }
 
         String line = reader.readLine();
 
@@ -170,19 +230,19 @@ public class TransmissionTreeToVirusTree {
 
             String[] entries = line.split(",");
 
-            InfectedUnit unit = new InfectedUnit("ID_"+entries[1]);
+            InfectedUnit unit = new InfectedUnit("ID_"+entries[unitColumn]);
 
             units.add(unit);
-            idMap.put("ID_"+entries[1], unit);
+            idMap.put("ID_"+entries[unitColumn], unit);
 
-            if(!entries[7].equals("NA")) {
+            if(!entries[samplingTimeColumn].equals("NA")) {
 
-                if (!idMap.containsKey("ID_"+entries[1])) {
-                    throw new RuntimeException("Trying to add a sampling event to unit " + entries[2] + " but this " +
-                            "unit not previously defined");
+                if (!idMap.containsKey("ID_"+entries[unitColumn])) {
+                    throw new RuntimeException("Trying to add a sampling event to unit " + entries[unitColumn] + " but" +
+                            "this unit not previously defined");
                 }
 
-                unit.addSamplingEvent(Double.parseDouble(entries[7]));
+                unit.addSamplingEvent(Double.parseDouble(entries[samplingTimeColumn]));
             }
 
             line = reader.readLine();
@@ -207,10 +267,6 @@ public class TransmissionTreeToVirusTree {
             if(event.time > lastRelevantEventTime){
                 lastRelevantEventTime = event.time;
             }
-        }
-
-        if(unit.infectionEvent == null){
-            System.out.println();
         }
 
         double activeTime = lastRelevantEventTime - unit.infectionEvent.time;
