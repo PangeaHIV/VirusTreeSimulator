@@ -1,17 +1,22 @@
-
 import dr.app.tools.NexusExporter;
 import dr.app.util.Arguments;
 import dr.evolution.coalescent.CoalescentSimulator;
 import dr.evolution.coalescent.ConstantPopulation;
 import dr.evolution.coalescent.DemographicFunction;
 import dr.evolution.coalescent.ExponentialGrowth;
-import dr.evolution.tree.*;
+import dr.evolution.tree.FlexibleNode;
+import dr.evolution.tree.FlexibleTree;
+import dr.evolution.tree.SimpleNode;
+import dr.evolution.tree.SimpleTree;
 import dr.evolution.util.Date;
 import dr.evolution.util.Taxon;
 import dr.evolution.util.Units;
 import dr.evomodel.epidemiology.LogisticGrowthN0;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,7 +27,7 @@ import java.util.HashMap;
  * @author mhall
  */
 
-public class TransmissionTreeToVirusTree {
+public class TransmissionTreeToVirusTreeHodcroft {
 
     protected static PrintStream progressStream = System.out;
 
@@ -38,13 +43,6 @@ public class TransmissionTreeToVirusTree {
     public static final String GROWTH_RATE = "growthRate";
     public static final String T50 = "t50";
 
-    public static final String IDREC = "IDREC";
-    public static final String IDTR = "IDTR";
-    public static final String TIME_TR = "TIME_TR";
-    public static final String IDTR_TIME_INFECTED = "IDTR_TIME_INFECTED";
-    public static final String IDPOP = "IDPOP";
-    public static final String TIME_SEQ = "TIME_SEQ";
-
     private DemographicFunction demFunct;
     private ArrayList<InfectedUnit> units;
     private HashMap<String, InfectedUnit> idMap;
@@ -52,33 +50,33 @@ public class TransmissionTreeToVirusTree {
 
     private double coalescentProbability;
 
-    public TransmissionTreeToVirusTree(String fileName,
-                                       DemographicFunction demFunct, String outputFileRoot){
+    public TransmissionTreeToVirusTreeHodcroft(String fileName,
+                                               DemographicFunction demFunct, String outputFileRoot){
         this.demFunct = demFunct;
         units = new ArrayList<InfectedUnit>();
         idMap = new HashMap<String, InfectedUnit>();
         this.outputFileRoot = outputFileRoot;
         coalescentProbability = 1;
         try {
-            readSamplingEvents(fileName);
             readInfectionEvents(fileName);
-            readIntroductionEvents(fileName);
+            readSamplingEvents(fileName);
+
 
         } catch(IOException e){
             e.printStackTrace();
         }
     }
 
-    public TransmissionTreeToVirusTree(String sampFileName, String transFileName,
-                                       DemographicFunction demFunct, String outputFileRoot){
+    public TransmissionTreeToVirusTreeHodcroft(String sampFileName, String transFileName,
+                                               DemographicFunction demFunct, String outputFileRoot){
         this.demFunct = demFunct;
         units = new ArrayList<InfectedUnit>();
         idMap = new HashMap<String, InfectedUnit>();
         this.outputFileRoot = outputFileRoot;
         try {
-            readSamplingEvents(sampFileName);
             readInfectionEvents(transFileName);
-            readIntroductionEvents(transFileName);
+            readSamplingEvents(sampFileName);
+
 
         } catch(IOException e){
             e.printStackTrace();
@@ -121,108 +119,45 @@ public class TransmissionTreeToVirusTree {
     private void readInfectionEvents(String fileName) throws IOException{
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        String[] headers = reader.readLine().split(",");
-
-        int infecteeColumn = -1;
-        int infectorColumn = -1;
-        int timeColumn = -1;
-
-        for(int i=0; i<headers.length; i++){
-            String headerItem = headers[i].replaceAll("\"", "");
-            if(headerItem.equals(IDREC)){
-                infecteeColumn = i;
-            } else if(headerItem.equals(IDTR)){
-                infectorColumn = i;
-            } else if(headerItem.equals(TIME_TR)){
-                timeColumn = i;
-            }
-        }
-
-        if(infecteeColumn == -1 || infectorColumn == -1 || timeColumn == -1){
-            throw new RuntimeException("Not all required columns are present in the file");
-        }
+        reader.readLine();
 
         String line = reader.readLine();
 
         while(line!=null){
             String[] entries = line.split(",");
 
-            InfectedUnit infectee = idMap.get("ID_"+entries[infecteeColumn]);
+            if(entries[0].equals("INFECTION")) {
 
-            InfectedUnit infector = idMap.get("ID_"+entries[infectorColumn]);
+                InfectedUnit unit = new InfectedUnit(entries[3]);
+                units.add(unit);
+                idMap.put(entries[3], unit);
 
-            Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[timeColumn]), infector,
-                    infectee);
+                if(!entries[2].equals("NA")) {
 
-            infector.addInfectionEvent(infection);
-            infectee.setInfectionEvent(infection);
+                    InfectedUnit infector = idMap.get(entries[2]);
 
-            infectee.parent = infector;
+                    Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[1]), infector, unit);
 
-            line = reader.readLine();
-        }
+                    infector.addInfectionEvent(infection);
+                    unit.setInfectionEvent(infection);
 
-    }
-
-    private void readIntroductionEvents(String fileName) throws IOException{
-        BufferedReader reader = new BufferedReader(new FileReader(fileName));
-
-        String[] headers = reader.readLine().split(",");
-
-        int infecteeColumn = -1;
-        int infecteeTimeColumn = -1;
-
-        for(int i=0; i<headers.length; i++){
-            String headerItem = headers[i].replaceAll("\"", "");
-            if(headerItem.equals(IDTR)){
-                infecteeColumn = i;
-            } else if(headerItem.equals(IDTR_TIME_INFECTED)){
-                infecteeTimeColumn = i;
-            }
-        }
-
-        if(infecteeColumn == -1 || infecteeTimeColumn == -1){
-            throw new RuntimeException("Not all required columns are present in the file");
-        }
-
-        String line = reader.readLine();
-
-        while(line!=null){
-            String[] entries = line.split(",");
-
-            InfectedUnit infectee = idMap.get("ID_"+entries[infecteeColumn]);
-
-            if(infectee.infectionEvent==null){
-                Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[infecteeTimeColumn]), null,
-                        infectee);
-                infectee.setInfectionEvent(infection);
+                    unit.parent = infector;
+                } else {
+                    Event infection = new Event(EventType.INFECTION, Double.parseDouble(entries[1]), null, unit);
+                    unit.setInfectionEvent(infection);
+                }
             }
 
             line = reader.readLine();
         }
 
     }
+
 
     private void readSamplingEvents(String fileName) throws IOException{
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        String[] headers = reader.readLine().split(",");
-
-        int unitColumn = -1;
-        int samplingTimeColumn = -1;
-
-        for(int i=0; i<headers.length; i++){
-            String headerItem = headers[i].replaceAll("\"", "");
-            if(headerItem.equals(IDPOP)){
-                unitColumn = i;
-            } else if(headerItem.equals(TIME_SEQ)){
-                samplingTimeColumn = i;
-            }
-        }
-
-        if(unitColumn == -1 || samplingTimeColumn == -1){
-            throw new RuntimeException("Not all required columns are present in the file");
-        }
+        reader.readLine();
 
         String line = reader.readLine();
 
@@ -230,19 +165,17 @@ public class TransmissionTreeToVirusTree {
 
             String[] entries = line.split(",");
 
-            InfectedUnit unit = new InfectedUnit("ID_"+entries[unitColumn]);
+            if(entries[0].equals("SAMPLING")) {
 
-            units.add(unit);
-            idMap.put("ID_"+entries[unitColumn], unit);
-
-            if(!entries[samplingTimeColumn].equals("NA")) {
-
-                if (!idMap.containsKey("ID_"+entries[unitColumn])) {
-                    throw new RuntimeException("Trying to add a sampling event to unit " + entries[unitColumn] + " but" +
-                            "this unit not previously defined");
+                if (!idMap.containsKey(entries[2])) {
+                    throw new RuntimeException("Trying to add a sampling event to unit " + entries[2] + " but this " +
+                            "unit not previously defined");
                 }
 
-                unit.addSamplingEvent(Double.parseDouble(entries[samplingTimeColumn]));
+                InfectedUnit unit = idMap.get(entries[2]);
+
+                unit.addSamplingEvent(Double.parseDouble(entries[1]));
+
             }
 
             line = reader.readLine();
@@ -268,6 +201,7 @@ public class TransmissionTreeToVirusTree {
                 lastRelevantEventTime = event.time;
             }
         }
+
 
         double activeTime = lastRelevantEventTime - unit.infectionEvent.time;
 
@@ -379,7 +313,7 @@ public class TransmissionTreeToVirusTree {
                     eventToSubtreeRoot.put(event, childSubtreeRoot);
                 }
 
-            } else if(event.type==EventType.SAMPLE) {
+            } else if(event.type== EventType.SAMPLE) {
                 relevantEvents.add(event);
             }
         }
@@ -507,19 +441,7 @@ public class TransmissionTreeToVirusTree {
         private void setInfectionEvent(Event event){
             for(Event childEvent : childEvents){
                 if(event.time > childEvent.time){
-
-                    if(childEvent.type == EventType.SAMPLE){
-                        throw new RuntimeException("Setting infection time for case "+id+" after its sampling at "+
-                        childEvent.time);
-                    } else {
-                        String childUnitName = childEvent.infectee.id;
-
-                        throw new RuntimeException("Setting infection time for case "+id+" after it infected "
-                                +childUnitName+" at "+childEvent.time);
-
-                    }
-
-
+                    throw new RuntimeException("Setting infection time for case "+id+" after an existing child event");
                 }
             }
 
@@ -630,11 +552,11 @@ public class TransmissionTreeToVirusTree {
             startNe = arguments.getRealOption(STARTING_POPULATION_SIZE);
         }
 
-        if(arguments.hasOption(GROWTH_RATE) && model!=ModelType.CONSTANT){
+        if(arguments.hasOption(GROWTH_RATE) && model!= ModelType.CONSTANT){
             growthRate = arguments.getRealOption(GROWTH_RATE);
         }
 
-        if(arguments.hasOption(T50) && model==ModelType.LOGISTIC){
+        if(arguments.hasOption(T50) && model== ModelType.LOGISTIC){
             t50 = arguments.getRealOption(T50);
         }
 
@@ -644,37 +566,33 @@ public class TransmissionTreeToVirusTree {
             case CONSTANT: {
                 demoFunction = new ConstantPopulation(Units.Type.YEARS);
                 ((ConstantPopulation)demoFunction).setN0(startNe);
-                break;
             }
             case EXPONENTIAL: {
                 demoFunction = new ExponentialGrowth(Units.Type.YEARS);
                 ((ExponentialGrowth)demoFunction).setN0(startNe);
                 ((ExponentialGrowth)demoFunction).setGrowthRate(growthRate);
-                break;
             }
             case LOGISTIC: {
                 demoFunction = new LogisticGrowthN0(Units.Type.YEARS);
                 ((LogisticGrowthN0)demoFunction).setN0(startNe);
                 ((LogisticGrowthN0)demoFunction).setGrowthRate(growthRate);
                 ((LogisticGrowthN0)demoFunction).setT50(t50);
-                break;
             }
         }
 
         final String[] args2 = arguments.getLeftoverArguments();
 
-        if(args2.length!=3){
+        if(args2.length!=2){
             printUsage(arguments);
             System.exit(1);
         }
 
-        String infectionsFileName = args2[0];
-        String samplesFileName = args2[1];
-        String outputFileRoot = args2[2];
+        String inputFileName = args2[0];
+        String outputFileRoot = args2[1];
 
 
-        TransmissionTreeToVirusTree instance = new TransmissionTreeToVirusTree(samplesFileName,
-                infectionsFileName, demoFunction, outputFileRoot);
+        TransmissionTreeToVirusTreeHodcroft instance = new TransmissionTreeToVirusTreeHodcroft(inputFileName,
+                demoFunction, outputFileRoot);
 
         try{
             instance.run();
@@ -682,5 +600,4 @@ public class TransmissionTreeToVirusTree {
             e.printStackTrace();
         }
     }
-
 }
