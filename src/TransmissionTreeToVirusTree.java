@@ -10,6 +10,7 @@ import dr.evolution.util.Date;
 import dr.evolution.util.Taxon;
 import dr.evolution.util.Units;
 import dr.evomodel.epidemiology.LogisticGrowthN0;
+import dr.math.MathUtils;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -37,6 +38,8 @@ public class TransmissionTreeToVirusTree {
     public static final String STARTING_POPULATION_SIZE = "N0";
     public static final String GROWTH_RATE = "growthRate";
     public static final String T50 = "t50";
+    public static final String SEED = "seed";
+
 
     public static final String IDREC = "IDREC";
     public static final String IDTR = "IDTR";
@@ -44,6 +47,7 @@ public class TransmissionTreeToVirusTree {
     public static final String IDTR_TIME_INFECTED = "IDTR_TIME_INFECTED";
     public static final String IDPOP = "IDPOP";
     public static final String TIME_SEQ = "TIME_SEQ";
+
 
     private DemographicFunction demFunct;
     private ArrayList<InfectedUnit> units;
@@ -594,7 +598,8 @@ public class TransmissionTreeToVirusTree {
                                 " exponential and logistic models), default = 0"),
                         new Arguments.RealOption(T50,"The time point, relative to the time of infection in backwards " +
                                 "time, at which the population is equal to half its final asymptotic value, in the " +
-                                "logistic model default = 0")
+                                "logistic model default = 0"),
+                        new Arguments.LongOption(SEED, "The random number seed")
                 });
 
 
@@ -636,6 +641,10 @@ public class TransmissionTreeToVirusTree {
 
         if(arguments.hasOption(T50) && model==ModelType.LOGISTIC){
             t50 = arguments.getRealOption(T50);
+        }
+
+        if(arguments.hasOption(SEED)){
+            MathUtils.setSeed(arguments.getLongOption(SEED));
         }
 
         DemographicFunction demoFunction = null;
