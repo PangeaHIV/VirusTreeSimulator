@@ -30,28 +30,28 @@ import java.util.HashMap;
 
 public class TransmissionTreeToVirusTree3 {
 
-    protected static PrintStream progressStream = System.out;
+    private static PrintStream progressStream = System.out;
 
     private enum ModelType{CONSTANT, EXPONENTIAL, LOGISTIC}
 
-    public static final String HELP = "help";
+    private static final String HELP = "help";
 
-    public static final String DEMOGRAPHIC_MODEL = "demoModel";
+    private static final String DEMOGRAPHIC_MODEL = "demoModel";
 
-    public static final String[] demographics = {"Constant", "Exponential", "Logistic"};
+    private static final String[] demographics = {"Constant", "Exponential", "Logistic"};
 
-    public static final String STARTING_POPULATION_SIZE = "N0";
-    public static final String GROWTH_RATE = "growthRate";
-    public static final String T50 = "t50";
-    public static final String SEED = "seed";
+    private static final String STARTING_POPULATION_SIZE = "N0";
+    private static final String GROWTH_RATE = "growthRate";
+    private static final String T50 = "t50";
+    private static final String SEED = "seed";
 
 
-    public static final String IDREC = "IDREC";
-    public static final String IDTR = "IDTR";
-    public static final String TIME_TR = "TIME_TR";
-    public static final String IDPOP = "IDPOP";
-    public static final String TIME_SEQ = "TIME_SEQ";
-    public static final String SEQ_COUNT = "SEQ_COUNT";
+    private static final String IDREC = "IDREC";
+    private static final String IDTR = "IDTR";
+    private static final String TIME_TR = "TIME_TR";
+    private static final String IDPOP = "IDPOP";
+    private static final String TIME_SEQ = "TIME_SEQ";
+    private static final String SEQ_COUNT = "SEQ_COUNT";
 
 
     private DemographicFunction demFunct;
@@ -77,7 +77,7 @@ public class TransmissionTreeToVirusTree3 {
         }
     }
 
-    public TransmissionTreeToVirusTree3(String sampFileName, String transFileName,
+    private TransmissionTreeToVirusTree3(String sampFileName, String transFileName,
                                         DemographicFunction demFunct, String outputFileRoot){
         this.demFunct = demFunct;
         units = new ArrayList<InfectedUnit>();
@@ -112,15 +112,17 @@ public class TransmissionTreeToVirusTree3 {
 
 
         for(FlexibleTree tree: detailedTrees){
-            NexusExporter exporter = new NexusExporter(new PrintStream(outputFileRoot
-                    + tree.getAttribute("firstCase") + "_detailed.nex"));
+            PrintStream tmp = new PrintStream(outputFileRoot + tree.getAttribute("firstCase") + "_detailed.nex");
+            NexusExporter exporter = new NexusExporter(tmp);
             exporter.exportTree(tree);
+            tmp.close();
         }
 
         for(FlexibleTree tree: simpleTrees){
-            NexusExporter exporter = new NexusExporter(new PrintStream(outputFileRoot
-                    + tree.getAttribute("firstCase") + "_simple.nex"));
+            PrintStream tmp = new PrintStream(outputFileRoot + tree.getAttribute("firstCase") + "_simple.nex");
+            NexusExporter exporter = new NexusExporter(tmp);
             exporter.exportTree(tree);
+            tmp.close();
         }
 
     }
@@ -569,7 +571,7 @@ public class TransmissionTreeToVirusTree3 {
         }
     }
 
-    public static void printUsage(Arguments arguments) {
+    private static void printUsage(Arguments arguments) {
 
         arguments.printUsage("virusTreeBuilder", "<infections-file-name> <sample-file-name> <output-file-name-root>");
     }
