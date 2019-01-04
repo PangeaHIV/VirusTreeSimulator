@@ -66,8 +66,8 @@ public class TransmissionTreeToVirusTree3 {
     public TransmissionTreeToVirusTree3(String fileName,
                                         DemographicFunction demFunct, String outputFileRoot){
         this.demFunct = demFunct;
-        units = new ArrayList<InfectedUnit>();
-        idMap = new HashMap<String, InfectedUnit>();
+        units = new ArrayList<>();
+        idMap = new HashMap<>();
         this.outputFileRoot = outputFileRoot;
         coalescentProbability = 1;
         try {
@@ -82,8 +82,8 @@ public class TransmissionTreeToVirusTree3 {
     public TransmissionTreeToVirusTree3(String sampFileName, String transFileName,
                                         DemographicFunction demFunct, String outputFileRoot){
         this.demFunct = demFunct;
-        units = new ArrayList<InfectedUnit>();
-        idMap = new HashMap<String, InfectedUnit>();
+        units = new ArrayList<>();
+        idMap = new HashMap<>();
         this.outputFileRoot = outputFileRoot;
         try {
             readInfectionEvents(transFileName);
@@ -103,7 +103,7 @@ public class TransmissionTreeToVirusTree3 {
 
     private void run(boolean forceCoalescences) throws IOException{
         ArrayList<FlexibleTree> detailedTrees = makeTrees(forceCoalescences);
-        ArrayList<FlexibleTree> simpleTrees = new ArrayList<FlexibleTree>();
+        ArrayList<FlexibleTree> simpleTrees = new ArrayList<>();
 
         for(FlexibleTree tree : detailedTrees) {
             FlexibleTree wbTree = makeWellBehavedTree(tree);
@@ -114,14 +114,16 @@ public class TransmissionTreeToVirusTree3 {
 
 
         for(FlexibleTree tree: detailedTrees){
+            int tempTL = (int)tree.getNodeAttribute(tree.getRoot(), "TransmittedLineage");
+
             NexusExporter exporter = new NexusExporter(new PrintStream(outputFileRoot
-                    + tree.getAttribute("firstCase") + "_detailed.nex"));
+                    + tree.getAttribute("firstCase") + "_" + tree.getNodeAttribute(tree.getRoot(), "TransmittedLineage") + "_detailed.nex"));
             exporter.exportTree(tree);
         }
 
         for(FlexibleTree tree: simpleTrees){
             NexusExporter exporter = new NexusExporter(new PrintStream(outputFileRoot
-                    + tree.getAttribute("firstCase") + "_simple.nex"));
+                    + tree.getAttribute("firstCase") + "_" + tree.getNodeAttribute(tree.getRoot(), "TransmittedLineage") + "_simple.nex"));
             exporter.exportTree(tree);
         }
 
@@ -249,7 +251,7 @@ public class TransmissionTreeToVirusTree3 {
     private HashSet<FlexibleTree> makeTreelet(InfectedUnit unit, ArrayList<Event> relevantEvents, boolean forceCoalescence){
 
         if(relevantEvents.size()==0){
-            return null;
+            return new HashSet<>();
         }
 
         ArrayList<SimpleNode> nodes = new ArrayList<SimpleNode>();
@@ -298,23 +300,27 @@ public class TransmissionTreeToVirusTree3 {
         if(nodes.size()>1){
             treeletRoots = simulateCoalescent(nodes, demFunct, activeTime, forceCoalescence);
         } else {
-            treeletRoots = new HashSet<FlexibleNode>();
+            treeletRoots = new HashSet<>();
             FlexibleNode treeletRoot = new FlexibleNode(new SimpleTree(nodes.get(0)), nodes.get(0), true);
             treeletRoot.setHeight(0);
 
             treeletRoots.add(treeletRoot);
         }
 
-        HashSet<FlexibleTree> out = new HashSet<FlexibleTree>();
+        HashSet<FlexibleTree> out = new HashSet<>();
 
         // add the root branch lengths
 
+        int counter = 0;
+
         for(FlexibleNode treeletRoot : treeletRoots){
+            counter++;
             FlexibleNode infectionNode = new FlexibleNode();
             infectionNode.setHeight(activeTime);
             infectionNode.addChild(treeletRoot);
             treeletRoot.setLength(activeTime - treeletRoot.getHeight());
             infectionNode.setAttribute("Event", unit.infectionEvent);
+            infectionNode.setAttribute("TransmittedLineage", counter);
 
             FlexibleTree aTree = new FlexibleTree(infectionNode);
 
@@ -335,7 +341,7 @@ public class TransmissionTreeToVirusTree3 {
 
         // find the first case
 
-        ArrayList<InfectedUnit> introducedCases = new ArrayList<InfectedUnit>();
+        ArrayList<InfectedUnit> introducedCases = new ArrayList<>();
 
         for(InfectedUnit unit : units){
             if(unit.parent==null){
@@ -347,7 +353,7 @@ public class TransmissionTreeToVirusTree3 {
             throw new RuntimeException("Can't find a first case");
         }
 
-        ArrayList<FlexibleTree> out = new ArrayList<FlexibleTree>();
+        ArrayList<FlexibleTree> out = new ArrayList<>();
 
         for(InfectedUnit introduction : introducedCases) {
             if(introduction.childEvents.size()>0) {
@@ -389,7 +395,7 @@ public class TransmissionTreeToVirusTree3 {
 
         HashMap<Event, ArrayList<FlexibleNode>> eventToSubtreeRoots = new HashMap<>();
 
-        ArrayList<Event> relevantEvents = new ArrayList<Event>();
+        ArrayList<Event> relevantEvents = new ArrayList<>();
 
         for(Event event : unit.childEvents){
 
@@ -412,7 +418,7 @@ public class TransmissionTreeToVirusTree3 {
         HashSet<FlexibleTree> unitTreelets = makeTreelet(unit, relevantEvents, forceCoalescence);
 
         if(unitTreelets.size()==0){
-            return null;
+            return new ArrayList<>();
         }
 
 
@@ -480,14 +486,14 @@ public class TransmissionTreeToVirusTree3 {
 
         do {
             simResults = simulator.simulateCoalescent(nodes.toArray(new SimpleNode[nodes.size()]),
-                    demogFunct, -maxHeight, 0, true);
-            if(simResults.length>1){
+                    demogFunct, -maxHeight, 0, forceCoalescence);
+            if(simResults.length>1 & forceCoalescence){
                 failCount++;
                 System.out.println("Failed to coalesce lineages: "+failCount);
             }
         } while(simResults.length!=1 & forceCoalescence);
 
-        HashSet<FlexibleNode> out = new HashSet<FlexibleNode>();
+        HashSet<FlexibleNode> out = new HashSet<>();
 
         for(int rootCount = 0; rootCount < simResults.length; rootCount++){
             SimpleNode root = simResults[rootCount];
@@ -527,6 +533,8 @@ public class TransmissionTreeToVirusTree3 {
             }
         }
         newPhylogeneticTree.endTreeEdit();
+        newPhylogeneticTree.setNodeAttribute(newPhylogeneticTree.getRoot(), "TransmittedLineage",
+                tree.getNodeAttribute(tree.getRoot(), "TransmittedLineage"));
 
 
         return new FlexibleTree(newPhylogeneticTree, true);
@@ -541,7 +549,7 @@ public class TransmissionTreeToVirusTree3 {
         private InfectedUnit(String id){
             this.id = id;
             parent = null;
-            childEvents = new ArrayList<Event>();
+            childEvents = new ArrayList<>();
         }
 
         private void addSamplingEvent(double time){
@@ -574,13 +582,9 @@ public class TransmissionTreeToVirusTree3 {
 
                         throw new RuntimeException("Setting infection time for case "+id+" after it infected "
                                 +childUnitName+" at "+childEvent.time);
-
                     }
-
-
                 }
             }
-
             infectionEvent = event;
         }
 
