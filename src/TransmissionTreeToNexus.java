@@ -1,18 +1,9 @@
 import dr.app.tools.NexusExporter;
-import dr.app.util.Arguments;
-import dr.evolution.coalescent.CoalescentSimulator;
-import dr.evolution.coalescent.ConstantPopulation;
-import dr.evolution.coalescent.DemographicFunction;
-import dr.evolution.coalescent.ExponentialGrowth;
 import dr.evolution.tree.FlexibleNode;
 import dr.evolution.tree.FlexibleTree;
 import dr.evolution.tree.SimpleNode;
 import dr.evolution.tree.SimpleTree;
-import dr.evolution.util.Date;
 import dr.evolution.util.Taxon;
-import dr.evolution.util.Units;
-import dr.evomodel.epidemiology.LogisticGrowthN0;
-import dr.math.MathUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -29,7 +20,7 @@ import java.util.HashSet;
  * @author mhall
  */
 
-public class TransmissionTreeToNewick {
+public class TransmissionTreeToNexus {
 
 
     public static final String IDREC = "Host_ID";
@@ -42,7 +33,7 @@ public class TransmissionTreeToNewick {
     private String outputFileRoot;
 
 
-    public TransmissionTreeToNewick(String fileName, String outputFileRoot){
+    public TransmissionTreeToNexus(String fileName, String outputFileRoot){
         units = new ArrayList<>();
         idMap = new HashMap<>();
         this.outputFileRoot = outputFileRoot;
@@ -361,7 +352,7 @@ public class TransmissionTreeToNewick {
         String outputFileRoot = args[1];
 
 
-        TransmissionTreeToNewick instance = new TransmissionTreeToNewick(infectionsFileName, outputFileRoot);
+        TransmissionTreeToNexus instance = new TransmissionTreeToNexus(infectionsFileName, outputFileRoot);
 
         try {
             instance.run();
