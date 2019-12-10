@@ -177,7 +177,7 @@ public class TransmissionTreeToVirusTree3 {
             InfectedUnit infectee = idMap.get("ID_"+entries[infecteeColumn]);
 
             if(!idMap.containsKey("ID_"+entries[infectorColumn]) & !entries[infectorColumn].equals("NA")){
-                throw new RuntimeException(entries[infectorColumn] + "does not appear in the infectee column of "
+                throw new RuntimeException(entries[infectorColumn] + " does not appear in the infectee column of "
                         + fileName);
             }
 
@@ -232,7 +232,7 @@ public class TransmissionTreeToVirusTree3 {
             String[] entries = line.split(",");
 
             if (!idMap.containsKey("ID_"+entries[unitColumn])) {
-                throw new RuntimeException("Trying to add a sampling event to unit " + entries[unitColumn] + " but" +
+                throw new RuntimeException("Trying to add a sampling event to unit " + entries[unitColumn] + " but " +
                         "this unit not previously defined");
             }
 
@@ -475,9 +475,9 @@ public class TransmissionTreeToVirusTree3 {
             }
         }
         double maxLastInterval = earliestNodeHeight;
-        double probNoCoalesenceInTime = Math.exp(demogFunct.getIntensity(maxLastInterval));
+        double probNoCoalescenceInTime = Math.exp(demogFunct.getIntensity(maxLastInterval));
 
-        coalescentProbability *= (1-probNoCoalesenceInTime);
+        coalescentProbability *= (1-probNoCoalescenceInTime);
 
         CoalescentSimulator simulator = new CoalescentSimulator();
 
@@ -770,15 +770,15 @@ public class TransmissionTreeToVirusTree3 {
         String samplesFileName = args2[1];
         String outputFileRoot = args2[2];
 
-
         TransmissionTreeToVirusTree3 instance = new TransmissionTreeToVirusTree3(samplesFileName,
                 infectionsFileName, demoFunction, outputFileRoot);
 
-        try{
+        try {
             instance.run(forceCoalesence);
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
 }
